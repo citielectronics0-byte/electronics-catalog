@@ -10,7 +10,7 @@
   <div class="max-w-6xl mx-auto space-y-6">
     <!-- Header -->
     <header class="flex justify-between items-center bg-white p-4 rounded-xl shadow-sm">
-      <h1 class="text-xl font-bold text-slate-800">CITY ELECTRONICS</h1>
+      <h1 class="text-xl font-bold text-slate-800">CITY ELETRONICS</h1>
       <div id="adminNav">
         <button onclick="showAdminLogin()" class="bg-slate-800 text-white px-3 py-1.5 rounded-lg text-sm font-medium">Admin Access</button>
       </div>
@@ -61,7 +61,7 @@
             <option value="Computer Accessories">Computer Accessories</option>
           </select>
           <input type="number" id="pPrice" placeholder="Price (₹)" class="border p-2 rounded text-sm" required />
-          <input type="url" id="pImage" placeholder="Image URL" class="border p-2 rounded text-sm" required />
+          <input type="url" id="pImage" placeholder="Image URL (e.g. https://i.postimg.cc/...)" class="border p-2 rounded text-sm" required />
           <input type="text" id="pDesc" placeholder="Description" class="border p-2 rounded text-sm md:col-span-3" required />
           <div class="flex gap-2 md:col-span-2">
             <button type="submit" id="saveBtn" class="w-full bg-green-600 text-white p-2 rounded text-sm font-semibold">Add Item</button>
@@ -91,10 +91,10 @@
     let selectedCategory = "All";
 
     let defaultProducts = [
-      { id: 1, name: "HDMI Cable 1.5m 4K Ultra HD", category: "Cables", price: 150, image: "https://via.placeholder.com/150", desc: "High-speed 4K 60Hz braided HDMI cable" },
-      { id: 2, name: "HDMI Cable 5m High Speed", category: "Cables", price: 380, image: "https://via.placeholder.com/150", desc: "Gold-plated connectors, heavy-duty shield" },
-      { id: 3, name: "CAT6 Ethernet Cable 305m", category: "Cables", price: 4500, image: "https://via.placeholder.com/150", desc: "Pure copper high speed network cable" },
-      { id: 4, name: "Universal TV Remote", category: "Remotes", price: 120, image: "https://via.placeholder.com/150", desc: "Compatible with LG, Samsung, Sony LED TVs" }
+      { id: 1, name: "HDMI Cable 1.5m 4K Ultra HD", category: "Cables", price: 150, image: "https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?w=400", desc: "High-speed 4K 60Hz braided HDMI cable" },
+      { id: 2, name: "HDMI Cable 5m High Speed", category: "Cables", price: 380, image: "https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?w=400", desc: "Gold-plated connectors, heavy-duty shield" },
+      { id: 3, name: "CAT6 Ethernet Cable 305m", category: "Cables", price: 4500, image: "https://images.unsplash.com/photo-1558494949-ef010cbdcc31?w=400", desc: "Pure copper high speed network cable" },
+      { id: 4, name: "Universal TV Remote", category: "Remotes", price: 120, image: "https://images.unsplash.com/photo-1526738549149-8e07eca6c147?w=400", desc: "Compatible with LG, Samsung, Sony LED TVs" }
     ];
 
     let products = JSON.parse(localStorage.getItem('products')) || defaultProducts;
@@ -138,7 +138,7 @@
       catalogDiv.innerHTML = filtered.map(p => `
         <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-200 flex flex-col justify-between">
           <div>
-            <img src="${p.image}" class="w-full h-32 object-cover rounded-lg mb-2" />
+            <img src="${p.image}" alt="${p.name}" class="w-full h-36 object-cover rounded-lg mb-2 bg-slate-100" />
             <span class="text-xs bg-slate-100 text-slate-600 px-2 py-0.5 rounded font-medium">${p.category}</span>
             <h3 class="font-semibold text-slate-800 mt-1">${p.name}</h3>
             <p class="text-xs text-slate-500 mb-2">${p.desc}</p>
