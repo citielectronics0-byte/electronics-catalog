@@ -3,14 +3,14 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Electronics B2B Wholesaler</title>
+  <title>CITY ELECTRONICS</title>
   <script src="https://cdn.tailwindcss.com"></script>
 </head>
 <body class="bg-slate-100 p-6 font-sans">
   <div class="max-w-6xl mx-auto space-y-6">
     <!-- Header -->
     <header class="flex justify-between items-center bg-white p-4 rounded-xl shadow-sm">
-      <h1 class="text-xl font-bold text-slate-800">Electronics Distribution Portal</h1>
+      <h1 class="text-xl font-bold text-slate-800">CITY ELECTRONICS</h1>
       <div id="adminNav">
         <button onclick="showAdminLogin()" class="bg-slate-800 text-white px-3 py-1.5 rounded-lg text-sm font-medium">Admin Access</button>
       </div>
@@ -18,10 +18,8 @@
 
     <!-- Customer View -->
     <div id="customerView" class="space-y-6">
-      <!-- Category Tabs -->
       <div class="bg-white p-3 rounded-xl shadow-sm flex flex-wrap gap-2" id="categoryTabs"></div>
 
-      <!-- Catalog & Order Form -->
       <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div id="catalog" class="lg:col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-4"></div>
         
@@ -32,6 +30,10 @@
             <input type="text" id="custName" placeholder="Business / Customer Name" class="w-full border p-2 rounded text-sm" required />
             <input type="tel" id="custPhone" placeholder="Phone Number" class="w-full border p-2 rounded text-sm" required />
             <textarea id="custNotes" placeholder="Delivery Address / Special Notes" class="w-full border p-2 rounded text-sm" rows="2"></textarea>
+            <div class="flex justify-between items-center pt-2 font-bold text-slate-800">
+              <span>Grand Total:</span>
+              <span id="cartTotal" class="text-blue-600 text-lg">₹0</span>
+            </div>
             <button type="submit" class="w-full bg-blue-600 text-white p-2.5 rounded-lg font-bold hover:bg-blue-700">Submit Order</button>
           </form>
         </div>
@@ -45,10 +47,11 @@
         <button onclick="logoutAdmin()" class="bg-red-600 text-white px-3 py-1.5 rounded-lg text-sm font-medium">Logout Admin</button>
       </div>
 
-      <!-- Add Product Section -->
+      <!-- Add / Edit Product Section -->
       <div class="bg-white p-4 rounded-xl shadow-sm">
-        <h3 class="text-md font-semibold mb-3 text-slate-800">Add New Product to Website</h3>
+        <h3 id="formTitle" class="text-md font-semibold mb-3 text-slate-800">Add New Product to Website</h3>
         <form id="productForm" onsubmit="saveProduct(event)" class="grid grid-cols-1 md:grid-cols-5 gap-3">
+          <input type="hidden" id="editProductId" value="" />
           <input type="text" id="pName" placeholder="Item Name (e.g. HDMI Cable 1.5m)" class="border p-2 rounded text-sm" required />
           <select id="pCategory" class="border p-2 rounded text-sm" required>
             <option value="Cables">Cables</option>
@@ -59,9 +62,18 @@
           </select>
           <input type="number" id="pPrice" placeholder="Price (₹)" class="border p-2 rounded text-sm" required />
           <input type="url" id="pImage" placeholder="Image URL" class="border p-2 rounded text-sm" required />
-          <input type="text" id="pDesc" placeholder="Description" class="border p-2 rounded text-sm md:col-span-4" required />
-          <button type="submit" class="bg-green-600 text-white p-2 rounded text-sm font-semibold md:col-span-1">Add Item</button>
+          <input type="text" id="pDesc" placeholder="Description" class="border p-2 rounded text-sm md:col-span-3" required />
+          <div class="flex gap-2 md:col-span-2">
+            <button type="submit" id="saveBtn" class="w-full bg-green-600 text-white p-2 rounded text-sm font-semibold">Add Item</button>
+            <button type="button" id="cancelEditBtn" onclick="resetForm()" class="hidden w-full bg-slate-400 text-white p-2 rounded text-sm font-semibold">Cancel</button>
+          </div>
         </form>
+      </div>
+
+      <!-- Inventory Management -->
+      <div class="bg-white p-4 rounded-xl shadow-sm">
+        <h3 class="text-md font-semibold mb-3 text-slate-800">Manage Products (Edit / Delete)</h3>
+        <div id="adminInventory" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4"></div>
       </div>
 
       <!-- Received Orders Section -->
@@ -73,10 +85,7 @@
   </div>
 
   <script>
-    // =========================================================================
-    // CHANGE THIS PASSWORD TO YOUR PERSONAL SECRET PASSWORD BEFORE DEPLOYING!
-    // =========================================================================
-    const MASTER_ADMIN_PASSWORD = "MySecretAdminPassword2026";
+    const MASTER_ADMIN_PASSWORD = "1976";
 
     const categories = ["All", "Cables", "Connectors", "Remotes", "Components", "Computer Accessories"];
     let selectedCategory = "All";
@@ -91,6 +100,10 @@
     let products = JSON.parse(localStorage.getItem('products')) || defaultProducts;
     let orders = JSON.parse(localStorage.getItem('orders')) || [];
     let cart = [];
+
+    function syncStorage() {
+      localStorage.setItem('products', JSON.stringify(products));
+    }
 
     // --- Customer Functions ---
     function renderCategoryTabs() {
@@ -138,22 +151,58 @@
 
     function addToCart(id) {
       const item = products.find(p => p.id === id);
-      cart.push(item);
+      if (!item) return;
+
+      const existingItem = cart.find(c => c.id === id);
+      if (existingItem) {
+        existingItem.quantity += 1;
+      } else {
+        cart.push({ ...item, quantity: 1 });
+      }
+      renderCart();
+    }
+
+    function updateQuantity(id, change) {
+      const item = cart.find(c => c.id === id);
+      if (!item) return;
+
+      item.quantity += change;
+      if (item.quantity <= 0) {
+        cart = cart.filter(c => c.id !== id);
+      }
       renderCart();
     }
 
     function renderCart() {
       const cartDiv = document.getElementById('cartItems');
+      const totalSpan = document.getElementById('cartTotal');
+
       if (cart.length === 0) {
         cartDiv.innerHTML = "No items selected.";
+        totalSpan.innerText = "₹0";
         return;
       }
-      cartDiv.innerHTML = cart.map((item, idx) => `
-        <div class="flex justify-between items-center bg-slate-50 p-2 rounded">
-          <span>${item.name} (₹${item.price})</span>
-          <button onclick="cart.splice(${idx}, 1); renderCart();" class="text-red-500 font-bold">×</button>
-        </div>
-      `).join('');
+
+      let grandTotal = 0;
+      cartDiv.innerHTML = cart.map(item => {
+        const itemTotal = item.price * item.quantity;
+        grandTotal += itemTotal;
+        return `
+          <div class="flex justify-between items-center bg-slate-50 p-2.5 rounded border border-slate-200">
+            <div>
+              <div class="font-semibold text-slate-800 text-xs">${item.name}</div>
+              <div class="text-slate-500 text-xs">₹${item.price} x ${item.quantity} = ₹${itemTotal}</div>
+            </div>
+            <div class="flex items-center gap-2">
+              <button onclick="updateQuantity(${item.id}, -1)" class="bg-slate-200 text-slate-800 font-bold px-2 rounded hover:bg-slate-300">-</button>
+              <span class="text-xs font-bold text-slate-800">${item.quantity}</span>
+              <button onclick="updateQuantity(${item.id}, 1)" class="bg-slate-200 text-slate-800 font-bold px-2 rounded hover:bg-slate-300">+</button>
+            </div>
+          </div>
+        `;
+      }).join('');
+
+      totalSpan.innerText = `₹${grandTotal}`;
     }
 
     function submitOrder(e) {
@@ -167,7 +216,7 @@
         phone: document.getElementById('custPhone').value,
         notes: document.getElementById('custNotes').value,
         items: [...cart],
-        total: cart.reduce((sum, item) => sum + item.price, 0)
+        total: cart.reduce((sum, item) => sum + (item.price * item.quantity), 0)
       };
 
       orders.unshift(newOrder);
@@ -181,13 +230,13 @@
       alert("Your order has been submitted successfully!");
     }
 
-    // --- Admin Authentication ---
+    // --- Admin Authentication & Management ---
     function showAdminLogin() {
       const enteredPwd = prompt("Enter Admin Password:");
-      
       if (enteredPwd === MASTER_ADMIN_PASSWORD) {
         document.getElementById('customerView').classList.add('hidden');
         document.getElementById('adminView').classList.remove('hidden');
+        renderAdminInventory();
         renderAdminOrders();
       } else if (enteredPwd !== null) {
         alert("Access Denied: Incorrect Password.");
@@ -199,21 +248,86 @@
       document.getElementById('customerView').classList.remove('hidden');
     }
 
+    function renderAdminInventory() {
+      const invDiv = document.getElementById('adminInventory');
+      if (products.length === 0) {
+        invDiv.innerHTML = "<p class='text-slate-500 text-sm col-span-3'>No products found in inventory.</p>";
+        return;
+      }
+
+      invDiv.innerHTML = products.map(p => `
+        <div class="border border-slate-200 p-3 rounded-lg bg-slate-50 flex flex-col justify-between">
+          <div>
+            <h4 class="font-bold text-slate-800">${p.name}</h4>
+            <p class="text-xs text-slate-500">${p.category} | ₹${p.price}</p>
+            <p class="text-xs text-slate-600 mt-1">${p.desc}</p>
+          </div>
+          <div class="flex gap-2 mt-3">
+            <button onclick="editProduct(${p.id})" class="w-full bg-blue-600 text-white text-xs py-1 rounded font-medium">Edit</button>
+            <button onclick="deleteProduct(${p.id})" class="w-full bg-red-600 text-white text-xs py-1 rounded font-medium">Delete</button>
+          </div>
+        </div>
+      `).join('');
+    }
+
     function saveProduct(e) {
       e.preventDefault();
+      const editId = document.getElementById('editProductId').value;
+      
       const newProd = {
-        id: Date.now(),
+        id: editId ? Number(editId) : Date.now(),
         name: document.getElementById('pName').value,
         category: document.getElementById('pCategory').value,
         price: Number(document.getElementById('pPrice').value),
         image: document.getElementById('pImage').value,
         desc: document.getElementById('pDesc').value
       };
-      products.push(newProd);
-      localStorage.setItem('products', JSON.stringify(products));
+
+      if (editId) {
+        products = products.map(p => p.id === Number(editId) ? newProd : p);
+      } else {
+        products.push(newProd);
+      }
+
+      syncStorage();
       renderCatalog();
+      renderAdminInventory();
+      resetForm();
+    }
+
+    function editProduct(id) {
+      const item = products.find(p => p.id === id);
+      if (!item) return;
+
+      document.getElementById('editProductId').value = item.id;
+      document.getElementById('pName').value = item.name;
+      document.getElementById('pCategory').value = item.category;
+      document.getElementById('pPrice').value = item.price;
+      document.getElementById('pImage').value = item.image;
+      document.getElementById('pDesc').value = item.desc;
+
+      document.getElementById('formTitle').innerText = "Edit Product Details";
+      document.getElementById('saveBtn').innerText = "Update Item";
+      document.getElementById('saveBtn').className = "w-full bg-blue-600 text-white p-2 rounded text-sm font-semibold";
+      document.getElementById('cancelEditBtn').classList.remove('hidden');
+    }
+
+    function deleteProduct(id) {
+      if (confirm("Are you sure you want to remove this product from the website?")) {
+        products = products.filter(p => p.id !== id);
+        syncStorage();
+        renderCatalog();
+        renderAdminInventory();
+      }
+    }
+
+    function resetForm() {
       document.getElementById('productForm').reset();
-      alert("Product added successfully!");
+      document.getElementById('editProductId').value = "";
+      document.getElementById('formTitle').innerText = "Add New Product to Website";
+      document.getElementById('saveBtn').innerText = "Add Item";
+      document.getElementById('saveBtn').className = "w-full bg-green-600 text-white p-2 rounded text-sm font-semibold";
+      document.getElementById('cancelEditBtn').classList.add('hidden');
     }
 
     function renderAdminOrders() {
@@ -236,7 +350,7 @@
           <div class="border-t border-slate-200 pt-2 text-xs text-slate-700">
             <b>Ordered Items:</b>
             <ul class="list-disc list-inside mt-1">
-              ${order.items.map(item => `<li>${item.name} - ₹${item.price}</li>`).join('')}
+              ${order.items.map(item => `<li>${item.name} - Qty: ${item.quantity} (₹${item.price} each = ₹${item.price * item.quantity})</li>`).join('')}
             </ul>
           </div>
         </div>
