@@ -5,15 +5,14 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>CITY ELECTRONICS</title>
   <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Supabase Cloud Library -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body class="bg-slate-100 p-6 font-sans">
   <div class="max-w-6xl mx-auto space-y-6">
-    <!-- Header -->
     <header class="flex justify-between items-center bg-white p-4 rounded-xl shadow-sm">
       <h1 class="text-xl font-bold text-slate-800">CITY ELECTRONICS</h1>
-      <div id="adminNav">
-        <button onclick="showAdminLogin()" class="bg-slate-800 text-white px-3 py-1.5 rounded-lg text-sm font-medium">Admin Access</button>
-      </div>
+      <button onclick="showAdminLogin()" id="adminBtn" class="bg-slate-800 text-white px-3 py-1.5 rounded-lg text-sm font-medium">Admin Access</button>
     </header>
 
     <!-- Customer View -->
@@ -40,19 +39,18 @@
       </div>
     </div>
 
-    <!-- Admin View (Protected) -->
+    <!-- Admin View -->
     <div id="adminView" class="hidden space-y-6">
       <div class="flex justify-between items-center bg-blue-50 border border-blue-200 p-4 rounded-xl">
         <h2 class="text-lg font-bold text-blue-900">Admin Control Panel</h2>
         <button onclick="logoutAdmin()" class="bg-red-600 text-white px-3 py-1.5 rounded-lg text-sm font-medium">Logout Admin</button>
       </div>
 
-      <!-- Add / Edit Product Section -->
       <div class="bg-white p-4 rounded-xl shadow-sm">
-        <h3 id="formTitle" class="text-md font-semibold mb-3 text-slate-800">Add New Product to Website</h3>
+        <h3 id="formTitle" class="text-md font-semibold mb-3 text-slate-800">Add New Product</h3>
         <form id="productForm" onsubmit="saveProduct(event)" class="grid grid-cols-1 md:grid-cols-5 gap-3">
           <input type="hidden" id="editProductId" value="" />
-          <input type="text" id="pName" placeholder="Item Name (e.g. HDMI Cable 1.5m)" class="border p-2 rounded text-sm" required />
+          <input type="text" id="pName" placeholder="Item Name" class="border p-2 rounded text-sm" required />
           <select id="pCategory" class="border p-2 rounded text-sm" required>
             <option value="Cables">Cables</option>
             <option value="Connectors">Connectors</option>
@@ -61,7 +59,7 @@
             <option value="Computer Accessories">Computer Accessories</option>
           </select>
           <input type="number" id="pPrice" placeholder="Price (₹)" class="border p-2 rounded text-sm" required />
-          <input type="url" id="pImage" placeholder="Image URL" class="border p-2 rounded text-sm" required />
+          <input type="url" id="pImage" placeholder="Image Direct Link" class="border p-2 rounded text-sm" required />
           <input type="text" id="pDesc" placeholder="Description" class="border p-2 rounded text-sm md:col-span-3" required />
           <div class="flex gap-2 md:col-span-2">
             <button type="submit" id="saveBtn" class="w-full bg-green-600 text-white p-2 rounded text-sm font-semibold">Add Item</button>
@@ -70,13 +68,11 @@
         </form>
       </div>
 
-      <!-- Inventory Management -->
       <div class="bg-white p-4 rounded-xl shadow-sm">
-        <h3 class="text-md font-semibold mb-3 text-slate-800">Manage Products (Edit / Delete)</h3>
+        <h3 class="text-md font-semibold mb-3 text-slate-800">Manage Cloud Inventory</h3>
         <div id="adminInventory" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4"></div>
       </div>
 
-      <!-- Received Orders Section -->
       <div class="bg-white p-4 rounded-xl shadow-sm">
         <h3 class="text-md font-semibold mb-3 text-slate-800">Received Customer Orders</h3>
         <div id="ordersList" class="space-y-3"></div>
@@ -85,36 +81,32 @@
   </div>
 
   <script>
-    const MASTER_ADMIN_PASSWORD = "1976";
+    // --- Supabase Credentials ---
+    const SUPABASE_URL = "https://pvbzxbtufpqzuckrzsbc.supabase.co";
+    const SUPABASE_KEY = "sb_publishable_cA9ugur8vxwwHDf3AZW7fQ_DK0ld0al";
+    const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
+    const MASTER_ADMIN_PASSWORD = "1976";
     const categories = ["All", "Cables", "Connectors", "Remotes", "Components", "Computer Accessories"];
     let selectedCategory = "All";
-
-    let defaultProducts = [
-      { id: 1, name: "HDMI Cable 1.5m 4K Ultra HD", category: "Cables", price: 150, image: "https://via.placeholder.com/150", desc: "High-speed 4K 60Hz braided HDMI cable" },
-      { id: 2, name: "HDMI Cable 5m High Speed", category: "Cables", price: 380, image: "https://via.placeholder.com/150", desc: "Gold-plated connectors, heavy-duty shield" },
-      { id: 3, name: "CAT6 Ethernet Cable 305m", category: "Cables", price: 4500, image: "https://via.placeholder.com/150", desc: "Pure copper high speed network cable" },
-      { id: 4, name: "Universal TV Remote", category: "Remotes", price: 120, image: "https://via.placeholder.com/150", desc: "Compatible with LG, Samsung, Sony LED TVs" }
-    ];
-
-    let products = JSON.parse(localStorage.getItem('products')) || defaultProducts;
-    let orders = JSON.parse(localStorage.getItem('orders')) || [];
+    let products = [];
     let cart = [];
 
-    function syncStorage() {
-      localStorage.setItem('products', JSON.stringify(products));
+    // --- Load Products from Supabase Cloud ---
+    async function loadProductsFromCloud() {
+      const { data, error } = await _supabase.from('products').select('*').order('id', { ascending: true });
+      if (!error && data) {
+        products = data;
+        renderCatalog();
+        renderAdminInventory();
+      }
     }
 
-    // --- Customer Functions ---
+    // --- Render Category Navigation ---
     function renderCategoryTabs() {
       const tabsDiv = document.getElementById('categoryTabs');
       tabsDiv.innerHTML = categories.map(cat => `
-        <button 
-          onclick="filterCategory('${cat}')" 
-          class="px-4 py-2 rounded-lg text-sm font-semibold transition ${
-            selectedCategory === cat ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
-          }"
-        >
+        <button onclick="filterCategory('${cat}')" class="px-4 py-2 rounded-lg text-sm font-semibold transition ${selectedCategory === cat ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'}">
           ${cat}
         </button>
       `).join('');
@@ -131,17 +123,17 @@
       const filtered = selectedCategory === "All" ? products : products.filter(p => p.category === selectedCategory);
 
       if (filtered.length === 0) {
-        catalogDiv.innerHTML = `<div class="col-span-2 text-slate-500 py-8 text-center bg-white rounded-xl">No items found in <b>${selectedCategory}</b>.</div>`;
+        catalogDiv.innerHTML = `<div class="col-span-2 text-slate-500 py-8 text-center bg-white rounded-xl">No items found.</div>`;
         return;
       }
 
       catalogDiv.innerHTML = filtered.map(p => `
         <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-200 flex flex-col justify-between">
           <div>
-            <img src="${p.image}" class="w-full h-32 object-cover rounded-lg mb-2" />
+            <img src="${p.image}" alt="${p.name}" class="w-full h-36 object-cover rounded-lg mb-2 bg-slate-100" />
             <span class="text-xs bg-slate-100 text-slate-600 px-2 py-0.5 rounded font-medium">${p.category}</span>
             <h3 class="font-semibold text-slate-800 mt-1">${p.name}</h3>
-            <p class="text-xs text-slate-500 mb-2">${p.desc}</p>
+            <p class="text-xs text-slate-500 mb-2">${p.description}</p>
             <p class="font-bold text-blue-600 mb-3">₹${p.price}</p>
           </div>
           <button onclick="addToCart(${p.id})" class="w-full bg-slate-100 hover:bg-slate-200 text-slate-800 py-1.5 rounded-lg text-sm font-medium">Add to Order</button>
@@ -149,13 +141,14 @@
       `).join('');
     }
 
+    // --- Cart Actions ---
     function addToCart(id) {
       const item = products.find(p => p.id === id);
       if (!item) return;
 
-      const existingItem = cart.find(c => c.id === id);
-      if (existingItem) {
-        existingItem.quantity += 1;
+      const existing = cart.find(c => c.id === id);
+      if (existing) {
+        existing.quantity += 1;
       } else {
         cart.push({ ...item, quantity: 1 });
       }
@@ -165,11 +158,8 @@
     function updateQuantity(id, change) {
       const item = cart.find(c => c.id === id);
       if (!item) return;
-
       item.quantity += change;
-      if (item.quantity <= 0) {
-        cart = cart.filter(c => c.id !== id);
-      }
+      if (item.quantity <= 0) cart = cart.filter(c => c.id !== id);
       renderCart();
     }
 
@@ -185,18 +175,18 @@
 
       let grandTotal = 0;
       cartDiv.innerHTML = cart.map(item => {
-        const itemTotal = item.price * item.quantity;
-        grandTotal += itemTotal;
+        const subtotal = item.price * item.quantity;
+        grandTotal += subtotal;
         return `
           <div class="flex justify-between items-center bg-slate-50 p-2.5 rounded border border-slate-200">
             <div>
-              <div class="font-semibold text-slate-800 text-xs">${item.name}</div>
-              <div class="text-slate-500 text-xs">₹${item.price} x ${item.quantity} = ₹${itemTotal}</div>
+              <div class="font-semibold text-xs">${item.name}</div>
+              <div class="text-slate-500 text-xs">₹${item.price} x ${item.quantity} = ₹${subtotal}</div>
             </div>
             <div class="flex items-center gap-2">
-              <button onclick="updateQuantity(${item.id}, -1)" class="bg-slate-200 text-slate-800 font-bold px-2 rounded hover:bg-slate-300">-</button>
-              <span class="text-xs font-bold text-slate-800">${item.quantity}</span>
-              <button onclick="updateQuantity(${item.id}, 1)" class="bg-slate-200 text-slate-800 font-bold px-2 rounded hover:bg-slate-300">+</button>
+              <button onclick="updateQuantity(${item.id}, -1)" class="bg-slate-200 px-2 rounded font-bold">-</button>
+              <span class="text-xs font-bold">${item.quantity}</span>
+              <button onclick="updateQuantity(${item.id}, 1)" class="bg-slate-200 px-2 rounded font-bold">+</button>
             </div>
           </div>
         `;
@@ -205,41 +195,42 @@
       totalSpan.innerText = `₹${grandTotal}`;
     }
 
-    function submitOrder(e) {
+    // --- Send Order to Supabase ---
+    async function submitOrder(e) {
       e.preventDefault();
-      if (cart.length === 0) return alert("Please select at least one item!");
-      
-      const newOrder = {
-        id: Date.now(),
-        date: new Date().toLocaleString(),
-        customerName: document.getElementById('custName').value,
+      if (cart.length === 0) return alert("Select at least one item!");
+
+      const total = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+
+      const { error } = await _supabase.from('orders').insert([{
+        customer_name: document.getElementById('custName').value,
         phone: document.getElementById('custPhone').value,
         notes: document.getElementById('custNotes').value,
-        items: [...cart],
-        total: cart.reduce((sum, item) => sum + (item.price * item.quantity), 0)
-      };
+        total_amount: total,
+        items: cart
+      }]);
 
-      orders.unshift(newOrder);
-      localStorage.setItem('orders', JSON.stringify(orders));
-
-      cart = [];
-      renderCart();
-      document.getElementById('custName').value = '';
-      document.getElementById('custPhone').value = '';
-      document.getElementById('custNotes').value = '';
-      alert("Your order has been submitted successfully!");
+      if (!error) {
+        alert("Order submitted to cloud successfully!");
+        cart = [];
+        renderCart();
+        document.getElementById('custName').value = '';
+        document.getElementById('custPhone').value = '';
+        document.getElementById('custNotes').value = '';
+      } else {
+        alert("Failed to submit order. Check network.");
+      }
     }
 
-    // --- Admin Authentication & Management ---
+    // --- Admin Operations ---
     function showAdminLogin() {
-      const enteredPwd = prompt("Enter Admin Password:");
-      if (enteredPwd === MASTER_ADMIN_PASSWORD) {
+      const pwd = prompt("Enter Admin Password:");
+      if (pwd === MASTER_ADMIN_PASSWORD) {
         document.getElementById('customerView').classList.add('hidden');
         document.getElementById('adminView').classList.remove('hidden');
-        renderAdminInventory();
-        renderAdminOrders();
-      } else if (enteredPwd !== null) {
-        alert("Access Denied: Incorrect Password.");
+        loadAdminOrders();
+      } else if (pwd !== null) {
+        alert("Incorrect password.");
       }
     }
 
@@ -250,49 +241,39 @@
 
     function renderAdminInventory() {
       const invDiv = document.getElementById('adminInventory');
-      if (products.length === 0) {
-        invDiv.innerHTML = "<p class='text-slate-500 text-sm col-span-3'>No products found in inventory.</p>";
-        return;
-      }
-
       invDiv.innerHTML = products.map(p => `
-        <div class="border border-slate-200 p-3 rounded-lg bg-slate-50 flex flex-col justify-between">
+        <div class="border p-3 rounded-lg bg-slate-50 flex flex-col justify-between">
           <div>
             <h4 class="font-bold text-slate-800">${p.name}</h4>
             <p class="text-xs text-slate-500">${p.category} | ₹${p.price}</p>
-            <p class="text-xs text-slate-600 mt-1">${p.desc}</p>
           </div>
           <div class="flex gap-2 mt-3">
-            <button onclick="editProduct(${p.id})" class="w-full bg-blue-600 text-white text-xs py-1 rounded font-medium">Edit</button>
-            <button onclick="deleteProduct(${p.id})" class="w-full bg-red-600 text-white text-xs py-1 rounded font-medium">Delete</button>
+            <button onclick="editProduct(${p.id})" class="w-full bg-blue-600 text-white text-xs py-1 rounded">Edit</button>
+            <button onclick="deleteProduct(${p.id})" class="w-full bg-red-600 text-white text-xs py-1 rounded">Delete</button>
           </div>
         </div>
       `).join('');
     }
 
-    function saveProduct(e) {
+    async function saveProduct(e) {
       e.preventDefault();
       const editId = document.getElementById('editProductId').value;
-      
-      const newProd = {
-        id: editId ? Number(editId) : Date.now(),
+      const payload = {
         name: document.getElementById('pName').value,
         category: document.getElementById('pCategory').value,
         price: Number(document.getElementById('pPrice').value),
         image: document.getElementById('pImage').value,
-        desc: document.getElementById('pDesc').value
+        description: document.getElementById('pDesc').value
       };
 
       if (editId) {
-        products = products.map(p => p.id === Number(editId) ? newProd : p);
+        await _supabase.from('products').update(payload).eq('id', Number(editId));
       } else {
-        products.push(newProd);
+        await _supabase.from('products').insert([payload]);
       }
 
-      syncStorage();
-      renderCatalog();
-      renderAdminInventory();
       resetForm();
+      loadProductsFromCloud();
     }
 
     function editProduct(id) {
@@ -304,62 +285,59 @@
       document.getElementById('pCategory').value = item.category;
       document.getElementById('pPrice').value = item.price;
       document.getElementById('pImage').value = item.image;
-      document.getElementById('pDesc').value = item.desc;
+      document.getElementById('pDesc').value = item.description;
 
-      document.getElementById('formTitle').innerText = "Edit Product Details";
+      document.getElementById('formTitle').innerText = "Edit Product";
       document.getElementById('saveBtn').innerText = "Update Item";
-      document.getElementById('saveBtn').className = "w-full bg-blue-600 text-white p-2 rounded text-sm font-semibold";
       document.getElementById('cancelEditBtn').classList.remove('hidden');
     }
 
-    function deleteProduct(id) {
-      if (confirm("Are you sure you want to remove this product from the website?")) {
-        products = products.filter(p => p.id !== id);
-        syncStorage();
-        renderCatalog();
-        renderAdminInventory();
+    async function deleteProduct(id) {
+      if (confirm("Delete product permanently?")) {
+        await _supabase.from('products').delete().eq('id', id);
+        loadProductsFromCloud();
       }
     }
 
     function resetForm() {
       document.getElementById('productForm').reset();
       document.getElementById('editProductId').value = "";
-      document.getElementById('formTitle').innerText = "Add New Product to Website";
+      document.getElementById('formTitle').innerText = "Add New Product";
       document.getElementById('saveBtn').innerText = "Add Item";
-      document.getElementById('saveBtn').className = "w-full bg-green-600 text-white p-2 rounded text-sm font-semibold";
       document.getElementById('cancelEditBtn').classList.add('hidden');
     }
 
-    function renderAdminOrders() {
+    async function loadAdminOrders() {
+      const { data, error } = await _supabase.from('orders').select('*').order('created_at', { ascending: false });
       const ordersDiv = document.getElementById('ordersList');
-      if (orders.length === 0) {
-        ordersDiv.innerHTML = "<p class='text-sm text-slate-500'>No orders received yet.</p>";
+      if (error || !data || data.length === 0) {
+        ordersDiv.innerHTML = "<p class='text-sm text-slate-500'>No orders found.</p>";
         return;
       }
 
-      ordersDiv.innerHTML = orders.map(order => `
-        <div class="border border-slate-200 p-4 rounded-lg bg-slate-50 space-y-2">
+      ordersDiv.innerHTML = data.map(order => `
+        <div class="border p-4 rounded-lg bg-slate-50 space-y-2">
           <div class="flex justify-between items-start">
             <div>
-              <h4 class="font-bold text-slate-800">${order.customerName} (${order.phone})</h4>
-              <p class="text-xs text-slate-500">Date: ${order.date}</p>
-              ${order.notes ? `<p class="text-xs text-slate-600 mt-1"><b>Notes/Address:</b> ${order.notes}</p>` : ''}
+              <h4 class="font-bold text-slate-800">${order.customer_name} (${order.phone})</h4>
+              <p class="text-xs text-slate-500">${new Date(order.created_at).toLocaleString()}</p>
+              ${order.notes ? `<p class="text-xs text-slate-600 mt-1"><b>Notes:</b> ${order.notes}</p>` : ''}
             </div>
-            <span class="font-bold text-blue-600">Total: ₹${order.total}</span>
+            <span class="font-bold text-blue-600">Total: ₹${order.total_amount}</span>
           </div>
-          <div class="border-t border-slate-200 pt-2 text-xs text-slate-700">
+          <div class="border-t pt-2 text-xs text-slate-700">
             <b>Ordered Items:</b>
             <ul class="list-disc list-inside mt-1">
-              ${order.items.map(item => `<li>${item.name} - Qty: ${item.quantity} (₹${item.price} each = ₹${item.price * item.quantity})</li>`).join('')}
+              ${order.items.map(i => `<li>${i.name} - Qty: ${i.quantity} (₹${i.price * i.quantity})</li>`).join('')}
             </ul>
           </div>
         </div>
       `).join('');
     }
 
-    // Initialize UI
+    // Init
     renderCategoryTabs();
-    renderCatalog();
+    loadProductsFromCloud();
   </script>
 </body>
 </html>
