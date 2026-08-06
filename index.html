@@ -8,11 +8,11 @@
   <!-- Supabase Cloud Library -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
-<body class="bg-slate-100 p-6 font-sans">
+<body class="bg-slate-100 p-4 md:p-6 font-sans">
   <div class="max-w-6xl mx-auto space-y-6">
     <header class="flex justify-between items-center bg-white p-4 rounded-xl shadow-sm">
       <h1 class="text-xl font-bold text-slate-800">CITY ELECTRONICS</h1>
-      <button onclick="showAdminLogin()" id="adminBtn" class="bg-slate-800 text-white px-3 py-1.5 rounded-lg text-sm font-medium">Admin Access</button>
+      <button onclick="showAdminLogin()" id="adminBtn" class="bg-slate-800 text-white px-3 py-1.5 rounded-lg text-sm font-medium hover:bg-slate-700">Admin Access</button>
     </header>
 
     <!-- Customer View -->
@@ -43,7 +43,7 @@
     <div id="adminView" class="hidden space-y-6">
       <div class="flex justify-between items-center bg-blue-50 border border-blue-200 p-4 rounded-xl">
         <h2 class="text-lg font-bold text-blue-900">Admin Control Panel</h2>
-        <button onclick="logoutAdmin()" class="bg-red-600 text-white px-3 py-1.5 rounded-lg text-sm font-medium">Logout Admin</button>
+        <button onclick="logoutAdmin()" class="bg-red-600 text-white px-3 py-1.5 rounded-lg text-sm font-medium hover:bg-red-700">Logout Admin</button>
       </div>
 
       <div class="bg-white p-4 rounded-xl shadow-sm">
@@ -59,11 +59,11 @@
             <option value="Computer Accessories">Computer Accessories</option>
           </select>
           <input type="number" id="pPrice" placeholder="Price (₹)" class="border p-2 rounded text-sm" required />
-          <input type="url" id="pImage" placeholder="Image Direct Link" class="border p-2 rounded text-sm" required />
+          <input type="url" id="pImage" placeholder="Image Direct Link (https://...)" class="border p-2 rounded text-sm" required />
           <input type="text" id="pDesc" placeholder="Description" class="border p-2 rounded text-sm md:col-span-3" required />
           <div class="flex gap-2 md:col-span-2">
-            <button type="submit" id="saveBtn" class="w-full bg-green-600 text-white p-2 rounded text-sm font-semibold">Add Item</button>
-            <button type="button" id="cancelEditBtn" onclick="resetForm()" class="hidden w-full bg-slate-400 text-white p-2 rounded text-sm font-semibold">Cancel</button>
+            <button type="submit" id="saveBtn" class="w-full bg-green-600 text-white p-2 rounded text-sm font-semibold hover:bg-green-700">Add Item</button>
+            <button type="button" id="cancelEditBtn" onclick="resetForm()" class="hidden w-full bg-slate-400 text-white p-2 rounded text-sm font-semibold hover:bg-slate-500">Cancel</button>
           </div>
         </form>
       </div>
@@ -88,6 +88,8 @@
 
     const MASTER_ADMIN_PASSWORD = "1976";
     const categories = ["All", "Cables", "Connectors", "Remotes", "Components", "Computer Accessories"];
+    const IMAGE_PLACEHOLDER = "https://placehold.co/400x300?text=No+Image+Available";
+
     let selectedCategory = "All";
     let products = [];
     let cart = [];
@@ -130,7 +132,7 @@
       catalogDiv.innerHTML = filtered.map(p => `
         <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-200 flex flex-col justify-between">
           <div>
-            <img src="${p.image}" alt="${p.name}" class="w-full h-36 object-cover rounded-lg mb-2 bg-slate-100" />
+            <img src="${p.image}" alt="${p.name}" onerror="this.onerror=null; this.src='${IMAGE_PLACEHOLDER}';" class="w-full h-40 object-cover rounded-lg mb-2 bg-slate-100" />
             <span class="text-xs bg-slate-100 text-slate-600 px-2 py-0.5 rounded font-medium">${p.category}</span>
             <h3 class="font-semibold text-slate-800 mt-1">${p.name}</h3>
             <p class="text-xs text-slate-500 mb-2">${p.description}</p>
@@ -211,14 +213,14 @@
       }]);
 
       if (!error) {
-        alert("Order submitted to cloud successfully!");
+        alert("Order submitted successfully!");
         cart = [];
         renderCart();
         document.getElementById('custName').value = '';
         document.getElementById('custPhone').value = '';
         document.getElementById('custNotes').value = '';
       } else {
-        alert("Failed to submit order. Check network.");
+        alert("Failed to submit order. Check your network connection.");
       }
     }
 
@@ -248,8 +250,8 @@
             <p class="text-xs text-slate-500">${p.category} | ₹${p.price}</p>
           </div>
           <div class="flex gap-2 mt-3">
-            <button onclick="editProduct(${p.id})" class="w-full bg-blue-600 text-white text-xs py-1 rounded">Edit</button>
-            <button onclick="deleteProduct(${p.id})" class="w-full bg-red-600 text-white text-xs py-1 rounded">Delete</button>
+            <button onclick="editProduct(${p.id})" class="w-full bg-blue-600 text-white text-xs py-1 rounded hover:bg-blue-700">Edit</button>
+            <button onclick="deleteProduct(${p.id})" class="w-full bg-red-600 text-white text-xs py-1 rounded hover:bg-red-700">Delete</button>
           </div>
         </div>
       `).join('');
